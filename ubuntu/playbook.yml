@@ -87,12 +87,16 @@
     - name: Fetch homesick configs
       command: homesick clone farktronix/configs
       become: true
-      become_user: pharkas
+      become_user: "{{ create_user }}" 
+      vars:
+          ansible_ssh_pipelining: true
 
     - name: Symlink homesick configs
       command: homesick symlink configs
       become: true
-      become_user: pharkas
+      become_user: "{{ create_user }}"
+      vars:
+          ansible_ssh_pipelining: true
 
 # Vim
     - name: Fetch Vundle
@@ -100,12 +104,16 @@
         repo: 'https://github.com/VundleVim/Vundle.vim.git'
         dest: '$HOME/.vim/bundle/Vundle.vim'
       become: true
-      become_user: pharkas
+      become_user: "{{ create_user }}" 
+      vars:
+          ansible_ssh_pipelining: true
 
     - name: Setup Vim
       command: vim +PluginInstall +qall
       become: true
-      become_user: pharkas
+      become_user: "{{ create_user }}" 
+      vars:
+          ansible_ssh_pipelining: true
 
 # Setup Fish
     - name: Setup Fish
@@ -113,5 +121,14 @@
       args:
           executable: /usr/bin/fish
       become: true
-      become_user: pharkas
+      become_user: "{{ create_user }}" 
+      vars:
+          ansible_ssh_pipelining: true
       
+    - name: Change shell to Fish
+      user: 
+        name: "{{ create_user }}"
+        shell: /usr/bin/fish
+      become_user: "{{ create_user }}"
+      vars:
+          ansible_ssh_pipelining: true
