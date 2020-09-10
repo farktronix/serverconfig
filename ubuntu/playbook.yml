@@ -54,13 +54,13 @@
         line: 'PermitRootLogin prohibit-password'
 
 # Install Packages
-    - name: Update apk
-      apk:
+    - name: Update apt
+      apt:
         update_cache: yes
         upgrade: yes
 
     - name: Install required packages
-      apk:
+      apt:
         name: '{{ sys_packages }}'
 
 # Docker

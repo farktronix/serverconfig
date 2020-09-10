@@ -1,0 +1,122 @@
+# Set up Alpine Linux AMI as a Factorio server
+# Thanks to https://www.digitalocean.com/community/tutorials/how-to-use-ansible-to-automate-initial-server-setup-on-ubuntu-18-04
+#
+---
+- hosts: all
+  become: true
+  vars_files:
+      - vars/default.yml
+
+  tasks:
+# Sudo Group Setup
+    - name: Ensure 'wheel' group exists
+      group:
+          name: wheel
+          state: present
+          
+    - name: Ensure 'docker' group exists
+      group:
+          name: docker 
+          state: present
+
+    - name: Allow 'wheel' group to have paswordless sudo
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+
+# User + Key Setup
+    - name: Create a new regular user with sudo privileges
+      user:
+        name: "{{ create_user }}"
+        state: present
+        groups: wheel,docker
+        append: true
+        create_home: true
+        shell: /usr/bin/fish
+        password: "$5$jenxXZY9sYQdZHVa$PZb4dO1b/X8FEe2Bqie6mW/26kRPbcDrhng5E4EROO."
+
+    - name: Set authorized key for remote user
+      authorized_key:
+        user: "{{ create_user }}"
+        state: present
+        key: "{{ lookup('file', item) }}"
+      with_fileglob:
+          - keys/*.pub
+
+    - name: Disable password authentication for root
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        state: present
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin prohibit-password'
+
+# Install Packages
+    - name: Update apk
+      apk:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install required packages
+      apk:
+        name: '{{ sys_packages }}'
+
+# Docker
+    - name: Start Docker
+      service:
+          name: docker
+          state: started
+          enabled: yes
+      ignore_errors: yes
+
+# Homesick
+    - name: Homesick dependency
+      gem:
+          name: thor 
+          state: latest
+          user_install: no
+          
+    - name: Install Homesick
+      gem:
+          name: homesick
+          state: latest
+          user_install: no
+
+    - name: Fetch homesick configs
+      command: homesick clone farktronix/configs
+      become: true
+      become_user: "{{ create_user }}"
+
+    - name: Symlink homesick configs
+      command: homesick symlink configs
+      become: true
+      become_user: "{{ create_user }}"
+
+# Vim
+    - name: Fetch Vundle
+      git: 
+        repo: 'https://github.com/VundleVim/Vundle.vim.git'
+        dest: '$HOME/.vim/bundle/Vundle.vim'
+      become: true
+      become_user: "{{ create_user }}"
+
+    - name: Setup Vim
+      command: vim +PluginInstall +qall
+      become: true
+      become_user: "{{ create_user }}"
+
+# Setup Fish
+    - name: Setup Fish
+      shell: fisher install farktronix/theme-bobthefish
+      args:
+          executable: /usr/bin/fish
+      become: true
+      become_user: "{{ create_user }}"
+
+    - name: Change shell to Fish
+      user: 
+        name: "{{ create_user }}"
+        shell: /usr/bin/fish
+      become_user: "{{ create_user }}"
